@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#143d32">
+    <title>Lab: Web Push com VAPID</title>
+    <link rel="manifest" href="/manifest.webmanifest">
+    <link rel="icon" href="/icon-192.png">
+    <link rel="apple-touch-icon" href="/icon-192.png">
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <main>
+      <p class="eyebrow">Laboratório · luizschons.com</p>
+      <h1>Uma notificação chega com a aba fechada.</h1>
+      <p class="lede">
+        Três participantes fazem isso existir. Esta página pede permissão e
+        entrega uma inscrição. O servidor da aplicação guarda essa inscrição e,
+        mais tarde, pede o envio. O push service do navegador (no Chrome, o FCM
+        do Google) entrega a mensagem e acorda o service worker. O texto vai
+        cifrado: o push service transporta bytes que não consegue ler.
+      </p>
+
+      <ol class="actors">
+        <li>
+          <strong>Você, nesta página.</strong>
+          O clique chama <code>Notification.requestPermission()</code> e depois
+          <code>PushManager.subscribe()</code> com a chave pública VAPID.
+        </li>
+        <li>
+          <strong>O servidor deste lab.</strong>
+          Guarda <code>endpoint</code>, <code>p256dh</code> e <code>auth</code>.
+          Na hora de enviar, assina um JWT (VAPID, RFC 8292) e cifra o texto
+          (<code>aes128gcm</code>, RFC 8291 e 8188).
+        </li>
+        <li>
+          <strong>O push service.</strong>
+          Recebe um <code>POST</code> no endpoint da inscrição (RFC 8030),
+          guarda a mensagem pelo tempo do <code>TTL</code> e acorda o
+          service worker quando o navegador está alcançável.
+        </li>
+      </ol>
+
+      <section class="panel" aria-labelledby="action-title">
+        <h2 id="action-title">Inscrição</h2>
+        <button id="enable" type="button" disabled>Ativar notificações</button>
+        <p id="status" role="status" data-kind="idle">Preparando o service worker…</p>
+
+        <dl id="sub" hidden>
+          <div>
+            <dt>Push service</dt>
+            <dd data-field="origin"></dd>
+          </div>
+          <div>
+            <dt>Endpoint</dt>
+            <dd data-field="endpoint"></dd>
+          </div>
+          <div>
+            <dt>p256dh</dt>
+            <dd data-field="p256dh"></dd>
+          </div>
+          <div>
+            <dt>auth</dt>
+            <dd data-field="auth"></dd>
+          </div>
+        </dl>
+        <p class="hint">
+          O caminho do endpoint funciona como uma senha de envio. A página
+          mostra só as pontas. Quem tiver a URL completa consegue pedir um
+          push para esta inscrição, se também tiver a chave privada VAPID.
+        </p>
+
+        <div class="row">
+          <button id="send" type="button" disabled>Disparar agora</button>
+          <button id="revoke" type="button" class="ghost" disabled>Parar no navegador</button>
+          <button id="forget" type="button" class="ghost" disabled>Apagar do servidor</button>
+        </div>
+        <p class="hint">
+          “Disparar agora” manda a notificação com a página aberta.
+          “Parar no navegador” cancela a inscrição só no push service e deixa
+          a cópia no servidor, para o próximo envio receber 404 ou 410.
+        </p>
+      </section>
+
+      <section id="receipt" hidden>
+        <h2>O service worker leu</h2>
+        <pre id="receipt-text"></pre>
+      </section>
+
+      <section class="notebook">
+        <h2>O que saiu no fio</h2>
+        <p class="hint">Inscrições guardadas no servidor: <strong id="count">0</strong></p>
+        <pre id="wire">Ainda não houve envio nesta execução do servidor.</pre>
+      </section>
+
+      <section>
+        <h2>A demo do post</h2>
+        <ol>
+          <li>Clique em <strong>Ativar notificações</strong> e aceite.</li>
+          <li>Feche esta aba.</li>
+          <li>No terminal, rode <code>npm run send</code>.</li>
+          <li>Quando a notificação chegar, clique nela. O service worker reabre o site.</li>
+        </ol>
+      </section>
+
+      <footer>
+        <p>
+          VAPID, aqui, é <em>Voluntary Application Server Identification</em>
+          (RFC 8292). Não tem relação com o produto de mesmo nome da Coinbase.
+          O que este ambiente conseguiu observar de verdade está em
+          <code>docs/RESULTS.md</code>.
+        </p>
+      </footer>
+    </main>
+    <script src="/app.js"></script>
+  </body>
+</html>

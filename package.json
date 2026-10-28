@@ -1,0 +1,22 @@
+{
+  "name": "lab-web-push-vapid",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Laboratório de Web Push com VAPID (RFC 8292, 8291, 8030 e 8188) para o blog luizschons.com",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "send": "node scripts/send.mjs",
+    "validate": "node scripts/validate.mjs"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "web-push": "3.6.7"
+  },
+  "devDependencies": {
+    "playwright": "1.56.1"
+  }
+}
