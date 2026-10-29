@@ -256,7 +256,9 @@ A captura `docs/pagina-inscrita.png` é desta execução, já com o layout atual
 
 A captura `docs/pagina-entrega.png` é da execução A, no momento em que o FCM tinha respondido 201 e o service worker tinha mostrado o plaintext na página. A lista de campos da inscrição estava em duas colunas; depois da captura ela passou a ser uma linha por campo. O resto da página é o mesmo.
 
-## 8. O que não foi testado
+## 8. O que não foi testado em 28 de outubro
+
+A lista abaixo é o que faltou naquele dia. O clique na notificação, a notificação desenhada pelo sistema e o envio com o processo do Chrome encerrado foram medidos em 29 de outubro, na seção 10. iPhone, Firefox e `pushsubscriptionchange` continuam sem prova.
 
 - **Clique na notificação.** `xdotool` não achou janela com o título "Prova no Chrome". `clicks` no servidor ficou 0. Nenhuma aba foi aberta pelo clique. O handler `notificationclick` está no `sw.js` e não foi exercido por um clique real. Não simulei o evento.
 - **Notificação visível do sistema.** Neste display não apareceu um popup do SO. O que existe é o registro interno do Chrome, lido com `getNotifications()` na seção 4.
@@ -272,3 +274,248 @@ A captura `docs/pagina-entrega.png` é da execução A, no momento em que o FCM 
 - Uma inscrição nova, na execução B, levou 410 no primeiro envio. A execução A, minutos antes, levou 201 e o service worker leu o plaintext.
 - O `aud` do JWT não é fixo. Para o FCM foi `https://fcm.googleapis.com`. Para o mock, `https://127.0.0.1:8799`, porta inclusa.
 - O corpo cifrado não contém o JSON. Isso foi conferido nos três envios ao FCM da execução A e no envio ao mock.
+
+## 10. PWA, 29 de outubro de 2026
+
+Comando: `npm run validate:pwa`. Ele sobe o lab em `http://127.0.0.1:8788`, um barramento D-Bus só desta prova e o dunst 1.9.2 nesse barramento, e abre o Chrome 156 com janela no display `:1` (o mesmo que já existia; o Xvfb não precisou subir). Perfil persistente, não anônimo. O relatório redigido ficou em `data/validate-pwa/`, fora do git. Chaves geradas na hora, também fora do git.
+
+Há duas execuções deste dia que entram aqui. Elas não compartilham chave VAPID.
+
+| | Aba, sem instalar | Aplicativo instalado |
+| --- | --- | --- |
+| Começo | 2026-10-29T02:22:35Z | 2026-10-29T02:29:21Z |
+| Chave pública no JWT | `BJykU9…hxjQ` | `BG8kU5…YSBg` |
+| Papel | `beforeinstallprompt` e push com a página numa aba | instalação aceita no diálogo e push com a janela standalone |
+
+User agent das duas: `Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36`.
+
+Uma terceira passada, às 02:26, clicou o botão azul do diálogo. Esse botão era **Cancel**. A instalação não aconteceu. Não uso os números dela.
+
+O dunst recebeu, antes do Chrome, uma notificação sintética só para ver se desenharia no display. Isso não é Web Push e não entra nos status abaixo.
+
+### 10.1 O Chrome ofereceu a instalação (de verdade)
+
+Nas duas execuções o Chrome buscou `http://127.0.0.1:8788/manifest.webmanifest` sem erro de parse, `Page.getInstallabilityErrors` voltou lista vazia, e a página mostrou o botão **Instalar aplicativo** com o texto “O Chrome ofereceu a instalação (beforeinstallprompt).” A captura é `docs/pwa-oferta-instalacao.png`.
+
+Na execução das 02:22 a janela do Chrome estava na aba `about:blank`. O diálogo de instalar não estava na tela. `PWA.install` pelo CDP falhou com `kCancelledDueToMainFrameNavigation`. `chrome://apps` mostrou a página vazia, “Web apps that you install appear here”. Não houve instalação.
+
+Na execução das 02:29 a janela se chamava `Lab: Web Push com VAPID - Google Chrome`. O `prompt()` abriu o diálogo nativo “Install app”, com Cancel e Install, o nome “Lab Web Push com VAPID” e a origem `127.0.0.1:8788`. A captura, tirada antes do clique, é `docs/pwa-dialogo-instalar.png`.
+
+O foco inicial desse diálogo é o Cancel, que é o botão azul. Um Return nesse estado recusa. O clique que valeu foi no botão da direita, em `740,279`, feito com `xdotool`. A página de origem passou a dizer que a instalação foi aceita. Não usei `--app=` na linha de comando.
+
+O Chrome guardou o aplicativo no perfil, em `Default/Web Applications/Manifest Resources/`, com ícones 192 e 512 e a versão maskable. `PWA.launch` abriu uma janela sem barra de endereço, título “Lab Web Push com VAPID”, cor de tema verde. Dentro dela, `matchMedia('(display-mode: standalone)')` era verdadeiro. A captura é `docs/pwa-instalada.png`.
+
+Essa captura ainda mostra a frase “O Chrome ainda não ofereceu a instalação.” Ela é o texto inicial do documento novo: a janela do aplicativo não recebe `beforeinstallprompt` de novo, porque o site já está instalado. A linha de cima, “Modo de exibição: standalone”, e a ausência da barra de endereço são a prova. O código, depois dessa captura, passou a trocar essa frase quando o modo já é standalone. A imagem não tem essa frase nova.
+
+### 10.2 Inscrição (de verdade)
+
+Permissão `granted`. A página mediu `p256dh` com 65 bytes e `auth` com 16 bytes. A inscrição que o FCM aceitou nos envios seguintes está mascarada como `https://fcm.googleapis.com/fcm/send/d_5p…AnPj`.
+
+A primeira inscrição da mesma execução, `https://fcm.googleapis.com/fcm/send/e-MO…qQ_v`, foi recusada. O FCM respondeu **410** em `Thu, 29 Oct 2026 02:29:31 GMT` e de novo em `Thu, 29 Oct 2026 02:29:35 GMT`, com o corpo:
+
+```text
+push subscription has unsubscribed or expired.
+```
+
+O lab apagou o registro (`removed: true`). O service worker não leu payload nenhum desses dois envios. O aplicativo estava em primeiro plano, em `standalone`, e mesmo assim não houve notificação. Não vou explicar por que o FCM recusou uma inscrição nova: a execução B de 28 de outubro já tinha feito isso, e eu continuo sem a causa.
+
+### 10.3 Primeiro plano
+
+**Aplicativo instalado: testado, e o push não chegou.** Os dois envios com a janela standalone em primeiro plano são os 410 da seção 10.2. O dunst não mostrou notificação. `busHasBody` ficou falso.
+
+O pedido do 410 das 02:29:35, para `e-MO…qQ_v`:
+
+```text
+POST /fcm/send/e-MO…qQ_v
+host: fcm.googleapis.com
+ttl: 3600
+urgency: high
+topic: lab
+content-type: application/octet-stream
+content-encoding: aes128gcm
+content-length: 202
+authorization: vapid t=eyJ0eXAiOiJK…0ak5lg, k=BG8kU5…YSBg
+```
+
+```json
+{
+  "header": { "typ": "JWT", "alg": "ES256" },
+  "payload": {
+    "aud": "https://fcm.googleapis.com",
+    "exp": 1793284175,
+    "sub": "mailto:webpush-lab@luizschons.com"
+  },
+  "signatureValid": true
+}
+```
+
+`exp` 1793284175 é `2026-10-29T14:29:35Z`, doze horas depois. Corpo cifrado, 202 bytes, SHA-256 `806211972af0613de67f749f0ffe7ce1a12fa3c104d4fe322199fb5e7b2318e4`. O plaintext não está dentro dele.
+
+```text
+xtCSxLMXp27LSX16N2SEiAAAEABBBPwV83IN5eQpHsDqktLHiP3aCnByCO+ae52W/6uxE9gCDtjpsKHEZcbGtl3buxZABsnG4NwlAMyF/LvXypvdfoHWscwOoaY46xQMpbxkl/PrMs6FFNAEVhnsu9j796g0J5dajHAwtvAJehNj9D3A10y3IkzGJAtdOtjoLDSoIpZEWJWg4B6nwwj/9Ra5s2VYR/EuRs3iui//d3t+UvefpbfZfg9vqXZ+6izFnKjyy63cTttuCQ==
+```
+
+Plaintext que o servidor cifrou e que ninguém no Chrome leu:
+
+```text
+{"title":"PWA em primeiro plano","body":"O aplicativo está aberto e em primeiro plano.","url":"/"}
+```
+
+**Aba comum, na execução das 02:22: chegou de verdade, e não era o aplicativo instalado.** A página estava em `display-mode: browser`. O FCM respondeu **201** em `Thu, 29 Oct 2026 02:22:59 GMT`. O service worker devolveu o mesmo JSON. O dunst desenhou a notificação. A captura é `docs/pwa-notificacao-primeiro-plano.png`.
+
+```text
+POST /fcm/send/e6M4…0bs_
+host: fcm.googleapis.com
+ttl: 3600
+urgency: high
+topic: lab
+content-encoding: aes128gcm
+content-length: 202
+authorization: vapid t=eyJ0eXAiOiJK…AYXtyA, k=BJykU9…hxjQ
+```
+
+JWT `aud` `https://fcm.googleapis.com`, `exp` 1793283779 (`2026-10-29T14:22:59Z`), `sub` `mailto:webpush-lab@luizschons.com`, assinatura válida. `location: https://fcm.googleapis.com/0:1793240579304168%2fd9afcd0001a18d`. SHA-256 `fbe921086a4592a10485f7521c2ed1bebcd9579822df56fef47497675aa39b41`. O plaintext não está no ciphertext.
+
+```text
+FmIM6rH9ya4vwT8axnLJLgAAEABBBJn6m5zeeE0jTsJLBdBcO2W0QphoBdXCeqn6wbgx3UZmYUdtSuktXY57bis6vM8HzZ/JeAEuvCxKy6c8tLV6n2Mi7SddXrbatdUJIQb6aZEOGmXYt27XHyEwwLExwqOmiUa/urJTtik2QMZlfE6mEnJNqthmLmmeBFL/AszgbK9l2e7e2CI+I9KSAXMOzumvTb30ISXrrobxFNPNkQv7jM67CcG0eoadp3giVdEk7FU6m3Rs0A==
+```
+
+### 10.4 Janela minimizada (de verdade, aplicativo instalado)
+
+`xdotool windowminimize` na janela cujo título era `Lab Web Push com VAPID - Lab: Web Push com VAPID`. O FCM respondeu **201** em `Thu, 29 Oct 2026 02:29:40 GMT`, endpoint `d_5p…AnPj`.
+
+```text
+ttl: 3600
+urgency: high
+topic: lab
+content-encoding: aes128gcm
+content-length: 187
+authorization: vapid t=eyJ0eXAiOiJK…gdlVBQ, k=BG8kU5…YSBg
+```
+
+```json
+{
+  "payload": {
+    "aud": "https://fcm.googleapis.com",
+    "exp": 1793284180,
+    "sub": "mailto:webpush-lab@luizschons.com"
+  },
+  "signatureValid": true
+}
+```
+
+`exp` 1793284180 é `2026-10-29T14:29:40Z`. `location: https://fcm.googleapis.com/0:1793240980846213%2fd9afcd0001a18d`. O service worker leu, igual:
+
+```text
+{"title":"PWA minimizado","body":"A janela do aplicativo foi minimizada.","url":"/"}
+```
+
+O dunst mostrou essa notificação. A captura é `docs/pwa-notificacao-minimizada.png`. Corpo cifrado, 187 bytes, SHA-256 `36a16a78b999d5a8ec66acb9fa34c4515849f10e10758d0fb8aa988b3b4479b5`. O plaintext não está dentro.
+
+```text
+2Dsed+1mA7hptZJIRFqioQAAEABBBOTmknrr/qxzWGtc/mfbSdWg4Yk/lqT+Zzm4CWfTQLe8f8D2PZ/1tvTC6fF7ErGl7jnRHOLEFr3eXv7YoCblk561BrqCRXrGh0hkFIMJSJtMdWIwiq+KdNKe81l0SRgEibHAMZzEL5aOEXx4vTRNsTHpIGXUXHWqd+9IEzNdzgnxrTE2vTuKXRD4EbIVyiJboYczveN015NUSNWj0vD4J/ovVSu1jw==
+```
+
+Não cliquei nessa notificação. O clique medido é o da seção 10.5.
+
+### 10.5 Janela fechada, Chrome ainda aberto, e o clique (de verdade)
+
+Fechei as janelas do site. Sobrou uma aba `chrome://new-tab-page/` e um `about:blank`, para o processo não morrer. `serviceWorkers` continuou 1. O FCM respondeu **201** em `Thu, 29 Oct 2026 02:29:42 GMT`, de novo em `d_5p…AnPj`.
+
+```text
+ttl: 3600
+urgency: high
+topic: lab
+content-encoding: aes128gcm
+content-length: 203
+authorization: vapid t=eyJ0eXAiOiJK…NmF3lg, k=BG8kU5…YSBg
+```
+
+```json
+{
+  "header": { "typ": "JWT", "alg": "ES256" },
+  "payload": {
+    "aud": "https://fcm.googleapis.com",
+    "exp": 1793284182,
+    "sub": "mailto:webpush-lab@luizschons.com"
+  },
+  "signatureValid": true
+}
+```
+
+`exp` 1793284182 é `2026-10-29T14:29:42Z`. `location: https://fcm.googleapis.com/0:1793240982478976%2fd9afcd0001a18d`. O service worker, sem janela do site, postou:
+
+```text
+{"title":"PWA com a janela fechada","body":"A janela foi fechada. O Chrome segue aberto.","url":"/"}
+```
+
+O dunst desenhou essa notificação (`docs/pwa-notificacao.png`). O barramento recebeu o `Notify` com esse texto. Corpo cifrado, 203 bytes, SHA-256 `101ae2b1d3886442e1cf255d04a0465237b3df73c905457c5049f80c91f67dd6`. O plaintext não está dentro.
+
+```text
+el+mdJZsRvsmwcu1cAmR8AAAEABBBJGPUTNFP1KgqV4+R4BNQi4tKwKuCu3JvK2fppEeNEKnFz9tgCi4drzqO5+Tv9v57iS+W8FQJyNV1X9J7VGPA/tET91WSaS3L2tdhCrQTTK/3GRqg8rh8maJ77CgZhidBCundj6zPIbb3lYRVdmmMOvg+MU7XFnXrQR+7K9/7TrlyYU4amXH8Me4MjKFg3EQjMldiFplAJTk1UgatJqiYennQUF3EjnMvGBhci7yagq1v9oFdJg=
+```
+
+O clique foi `dunstctl action`, a ação padrão do daemon, às 02:29:43.840Z. Não foi um `dispatchEvent` fabricado na página. O service worker postou em `/lab/notification-click`:
+
+```json
+{
+  "url": "http://127.0.0.1:8788/",
+  "action": "openWindow",
+  "focused": false,
+  "opened": true,
+  "clientCount": 0
+}
+```
+
+`clientCount: 0` quer dizer que `clients.matchAll` não achou janela do site, então o código não chamou `focus()`. Chamou `clients.openWindow`. `opened: true` é o retorno dessa chamada. A janela que apareceu é a do aplicativo instalado: sem barra de endereço, `display-mode: standalone`, e o documento dela mostrou o bloco “O clique na notificação” com `ação: openWindow` e `modo agora: standalone`. `document.hasFocus()` nesse documento estava `true` quando a prova leu. Outras janelas do mesmo Chrome (`chrome://new-tab-page/` e `about:blank`) também responderam `hasFocus: true` na mesma leitura, então não trato isso como exclusividade do foco do sistema. O que está provado é que o clique abriu a janela do PWA instalado.
+
+Capturas: `docs/pwa-foco-apos-clique.png` (a janela) e `docs/pwa-clique-registrado.png` (o texto que a página mostrou). A bolha do Google Tradutor aparece na janela. Ela não fez parte do clique.
+
+### 10.6 Processo do Chrome encerrado (de verdade, e a notificação não apareceu enquanto ele estava morto)
+
+`context.close()` encerrou o Chrome. `ps` não achou processo com o perfil desta prova. Aí o envio foi feito.
+
+O FCM respondeu **201** em `Thu, 29 Oct 2026 02:29:46 GMT`, endpoint `d_5p…AnPj`. Aceitar o armazenamento não é entregar ao service worker. Durante os 15 segundos com o Chrome morto não houve `POST /lab/push-received` e o dunst não recebeu esse texto.
+
+```text
+ttl: 3600
+urgency: high
+topic: lab
+content-encoding: aes128gcm
+content-length: 212
+authorization: vapid t=eyJ0eXAiOiJK…pnZkXQ, k=BG8kU5…YSBg
+```
+
+```json
+{
+  "payload": {
+    "aud": "https://fcm.googleapis.com",
+    "exp": 1793284186,
+    "sub": "mailto:webpush-lab@luizschons.com"
+  },
+  "signatureValid": true
+}
+```
+
+`exp` 1793284186 é `2026-10-29T14:29:46Z`. `location: https://fcm.googleapis.com/0:1793240986910820%2fd9afcd0001a18d`. SHA-256 `4b0440a4ed7619ad08608d489f8425e2d9ef33092bcc50a9e31673bbe3a9a69f`. O plaintext não está no ciphertext.
+
+```text
+7dAfS7r4WsifQWb9XlLqNAAAEABBBBkxCyxpGZIHYfq/YjxJlO4F4uZFO/AGsdYvg00B0eGlqmUefBoNUfYs/lWNQFa9cs7Uo9xhv9iQADuPSOhOUBd+TDmRNSBP7JkNgMfkWmP/5vr9rUdR4WczFQO55cX9bYF99R7GC7W5t6/HX7BqWDZflXE6wC6x49Xb6b7a5U38i+ekwvzVgyfnRa/BQL+Mynwlfg8n0wUJQREUyo1uG1vMzNKWTDcxfdr8eUsD1ifYrF2Pccir3ObFQV4Kxv8=
+```
+
+Reabri o mesmo perfil. Em `2026-10-29T02:30:04.801Z` o service worker leu o JSON, e o dunst desenhou a notificação (`docs/pwa-notificacao-chrome-reaberto.png`):
+
+```text
+{"title":"PWA com o Chrome fechado","body":"O processo do Chrome foi encerrado antes deste envio.","url":"/"}
+```
+
+O FCM tinha guardado a mensagem. Ela chegou quando o Chrome voltou. Não chegou com o processo encerrado.
+
+### 10.7 O que esta rodada não testou
+
+- **iPhone, iPad e Safari.** Não havia aparelho. Não há endpoint da Apple. O manifesto não foi conferido no iOS.
+- **Firefox.** O binário não está nesta máquina. Não há endpoint da Mozilla.
+- **Android.** Não havia aparelho nem emulador.
+- **`pushsubscriptionchange`.** O service worker escuta o evento. Esta execução não gravou essa lista, então não afirmo que disparou ou que deixou de disparar.
+- **Notificação em primeiro plano do aplicativo já instalado.** O estado foi testado. O FCM respondeu 410 e nada foi exibido. A notificação em primeiro plano que existe é a da aba, na seção 10.3, antes da instalação.
+- **Clique que chama `focus()` numa janela que já estava aberta.** O clique medido achou zero janelas e usou `openWindow`. Não exercitei o ramo do `focus()` com um cliente já existente.

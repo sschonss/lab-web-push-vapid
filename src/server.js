@@ -141,6 +141,10 @@ async function route(req, res) {
     clicks.push({
       at: typeof body.at === 'string' ? body.at : new Date().toISOString(),
       url: typeof body.url === 'string' ? body.url.slice(0, 300) : '',
+      action: typeof body.action === 'string' ? body.action.slice(0, 40) : '',
+      focused: body.focused === true,
+      opened: body.opened === true,
+      clientCount: Number.isFinite(body.clientCount) ? body.clientCount : 0,
     });
     sendJson(res, 200, { ok: true });
     return;

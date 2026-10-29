@@ -10,7 +10,8 @@
   "scripts": {
     "start": "node src/server.js",
     "send": "node scripts/send.mjs",
-    "validate": "node scripts/validate.mjs"
+    "validate": "node scripts/validate.mjs",
+    "validate:pwa": "node scripts/validate-pwa.mjs"
   },
   "license": "MIT",
   "dependencies": {

@@ -42,6 +42,18 @@
         </li>
       </ol>
 
+      <section class="panel" aria-labelledby="install-title">
+        <h2 id="install-title">Instalar</h2>
+        <p id="display-mode" data-mode="browser">Modo de exibição: …</p>
+        <p id="install-state">O Chrome ainda não ofereceu a instalação.</p>
+        <button id="install" type="button" hidden>Instalar aplicativo</button>
+        <p class="hint">
+          O botão só aparece quando o Chrome dispara
+          <code>beforeinstallprompt</code>. Isso exige manifesto, ícones e um
+          service worker com handler de <code>fetch</code>.
+        </p>
+      </section>
+
       <section class="panel" aria-labelledby="action-title">
         <h2 id="action-title">Inscrição</h2>
         <button id="enable" type="button" disabled>Ativar notificações</button>
@@ -88,6 +100,11 @@
         <pre id="receipt-text"></pre>
       </section>
 
+      <section id="click-log" hidden>
+        <h2>O clique na notificação</h2>
+        <pre id="click-text"></pre>
+      </section>
+
       <section class="notebook">
         <h2>O que saiu no fio</h2>
         <p class="hint">Inscrições guardadas no servidor: <strong id="count">0</strong></p>
@@ -97,10 +114,11 @@
       <section>
         <h2>A demo do post</h2>
         <ol>
+          <li>Se o Chrome oferecer, clique em <strong>Instalar aplicativo</strong>.</li>
           <li>Clique em <strong>Ativar notificações</strong> e aceite.</li>
-          <li>Feche esta aba.</li>
+          <li>Feche a janela do aplicativo. O Chrome pode continuar aberto.</li>
           <li>No terminal, rode <code>npm run send</code>.</li>
-          <li>Quando a notificação chegar, clique nela. O service worker reabre o site.</li>
+          <li>Quando a notificação chegar, clique nela. O service worker foca ou abre o aplicativo.</li>
         </ol>
       </section>
 

@@ -71,13 +71,15 @@ section li {
 .panel,
 .notebook,
 #receipt,
+#click-log,
 section {
   margin-top: 1.5rem;
 }
 
 .panel,
 .notebook,
-#receipt {
+#receipt,
+#click-log {
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: 16px;
@@ -128,6 +130,19 @@ button.ghost {
 
 #status[data-kind="error"] { color: var(--rust); }
 #status[data-kind="ok"] { color: var(--green); }
+
+#display-mode {
+  font-family: "Liberation Sans", "Nimbus Sans", sans-serif;
+  margin-top: 0;
+}
+
+#display-mode[data-mode="standalone"] { color: var(--green); }
+
+#install {
+  background: transparent;
+  color: var(--green);
+  border: 1px solid var(--green);
+}
 
 dl {
   display: grid;

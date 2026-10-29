@@ -1,3 +1,8 @@
+const installButton = document.querySelector('#install');
+const installState = document.querySelector('#install-state');
+const displayModeNode = document.querySelector('#display-mode');
+const clickLog = document.querySelector('#click-log');
+const clickText = document.querySelector('#click-text');
 const enableButton = document.querySelector('#enable');
 const sendButton = document.querySelector('#send');
 const revokeButton = document.querySelector('#revoke');
@@ -10,9 +15,30 @@ const wireNode = document.querySelector('#wire');
 const countNode = document.querySelector('#count');
 
 const OPEN_BODY = 'Disparo com a página ainda aberta.';
-const state = { endpoint: null };
+const state = { endpoint: null, deferredInstall: null };
 
+showDisplayMode();
 boot().catch((err) => setStatus(err.message || 'Não foi possível preparar a página.', 'error'));
+
+window.addEventListener('beforeinstallprompt', (event) => {
+  event.preventDefault();
+  state.deferredInstall = event;
+  installButton.hidden = false;
+  installButton.disabled = false;
+  installState.textContent = 'O Chrome ofereceu a instalação (beforeinstallprompt).';
+});
+
+window.addEventListener('appinstalled', () => {
+  state.deferredInstall = null;
+  installButton.hidden = true;
+  installState.textContent = 'O Chrome confirmou a instalação (appinstalled).';
+});
+
+installButton.addEventListener('click', () => {
+  installApp().catch((err) => {
+    installState.textContent = err.message || 'A instalação não completou.';
+  });
+});
 
 enableButton.addEventListener('click', () => {
   subscribe().catch((err) => {
@@ -40,7 +66,38 @@ navigator.serviceWorker?.addEventListener('message', (event) => {
   if (event.data?.type === 'push' && typeof event.data.raw === 'string') {
     showReceipt(event.data.raw);
   }
+  if (event.data?.type === 'notificationclick') showClick(event.data);
 });
+
+async function installApp() {
+  const prompt = state.deferredInstall;
+  if (!prompt) throw new Error('O Chrome não está oferecendo a instalação agora.');
+  installButton.disabled = true;
+  prompt.prompt();
+  const choice = await prompt.userChoice;
+  state.deferredInstall = null;
+  installState.textContent = choice.outcome === 'accepted'
+    ? 'Instalação aceita neste navegador.'
+    : 'Instalação recusada neste navegador.';
+  if (choice.outcome !== 'accepted') installButton.disabled = false;
+}
+
+function showDisplayMode() {
+  const mode = currentDisplayMode();
+  displayModeNode.dataset.mode = mode;
+  displayModeNode.textContent = `Modo de exibição: ${mode}`;
+  if (mode === 'standalone' && /ainda não ofereceu/i.test(installState.textContent)) {
+    installState.textContent = 'Esta janela é o aplicativo instalado (display-mode: standalone).';
+  }
+}
+
+function currentDisplayMode() {
+  if (window.matchMedia('(display-mode: standalone)').matches) return 'standalone';
+  if (window.matchMedia('(display-mode: minimal-ui)').matches) return 'minimal-ui';
+  if (window.matchMedia('(display-mode: fullscreen)').matches) return 'fullscreen';
+  if (window.matchMedia('(display-mode: window-controls-overlay)').matches) return 'window-controls-overlay';
+  return 'browser';
+}
 
 async function boot() {
   if (!window.isSecureContext) {
@@ -48,6 +105,15 @@ async function boot() {
   }
   if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
     throw new Error('Este navegador não expõe service worker e PushManager.');
+  }
+
+  // Na primeira visita o service worker ainda não controla a página. O Chrome
+  // só oferece instalação quando a página já está sob o controle de um
+  // service worker com handler de fetch. Um reload, uma vez, resolve isso.
+  if (!navigator.serviceWorker.controller) {
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      window.location.reload();
+    }, { once: true });
   }
 
   const registration = await navigator.serviceWorker.register('/sw.js');
@@ -203,6 +269,8 @@ async function refreshEvidence() {
 
   const receipt = data.receipts.at(-1);
   if (receipt?.raw) showReceipt(receipt.raw);
+  const click = data.clicks.at(-1);
+  if (click) showClick(click);
 
   const send = data.sends.at(-1);
   if (!send) {
@@ -234,6 +302,20 @@ function showReceipt(raw) {
   receiptNode.hidden = false;
   receiptText.textContent = raw;
   receiptText.dataset.raw = raw;
+}
+
+function showClick(click) {
+  clickLog.hidden = false;
+  const action = click.action || 'desconhecida';
+  clickText.textContent = [
+    `ação: ${action}`,
+    `focada: ${click.focused ? 'sim' : 'não'}`,
+    `aberta: ${click.opened ? 'sim' : 'não'}`,
+    `janelas do site antes do clique: ${click.clientCount ?? '—'}`,
+    `modo agora: ${currentDisplayMode()}`,
+  ].join('\n');
+  clickText.dataset.action = action;
+  showDisplayMode();
 }
 
 function setStatus(message, kind) {
